@@ -1,0 +1,230 @@
+$(function () {   
+
+#foreach($column in $columns)
+#if($column.columnName != $pk.columnName)
+#if($column.attrType=='Date')
+   	$('#${column.columnName}').daterangepicker({
+		locale: {
+			format: 'YYYY/MM/DD',
+			applyLabel: '确定',
+			cancelLabel: '取消',
+			fromLabel: '起始时间',
+			toLabel: '结束时间',
+			customRangeLabel: '自定义',
+			daysOfWeek: ['日', '一', '二', '三', '四', '五', '六'],
+			monthNames: ['一月', '二月', '三月', '四月', '五月', '六月',
+				'七月', '八月', '九月', '十月', '十一月', '十二月'
+			],
+			firstDay: 1
+
+		}
+	});
+#elseif($column.dataType=='tinyint')
+	$.get(baseURL + "sys/users/" + userid + "/${shortclassname}s",{'code':'sys_${shortclassname}_${column.columnName}'}, function(r) {
+		vm.qselect.${column.columnName} = r.list;
+		if(r.list.length > 0)
+			vm.q.${column.columnName} = r.list[0].value;
+	});
+#end
+#end
+#end
+
+   vm.reload();
+});
+
+var vm = new Vue({
+		el: '#app',
+		data: {
+			q: {},
+			qselect: {},
+			showList: true,
+			title: null,
+			list: [],
+			item: {},
+			start: 0,
+			limit: 10,
+			pageSize: '10',
+			page: [],
+			pageIndex: 1,
+			total: 0,
+			ischeckall: false,
+			checkboxmodel: []
+		},
+		watch: {
+			pageSize: 'pageSizeChange',
+			pageIndex: 'pageIndexChange',
+			checkboxmodel: 'checkboxmodelChange'
+		},
+		methods: {
+			checkall: function() {
+				vm.checkboxmodel = [];
+				if(vm.ischeckall) {
+					for(var i = 0; i < this.list.length; i++) {
+						vm.checkboxmodel.push(this.list[i].$pk.attrname);
+					}
+				}
+			},
+			checkboxmodelChange: function() {
+				vm.ischeckall = (vm.checkboxmodel.length !=0 && vm.checkboxmodel.length == vm.list.length);
+			},
+			pageSizeChange: function() {
+				vm.start = 0;
+				vm.limit = parseInt(vm.pageSize);
+				vm.reload();
+				vm.checkboxmodelChange();
+			},
+			pageIndexChange: function() {
+				vm.start = (vm.pageIndex - 1) * parseInt(vm.pageSize);
+				vm.reload();
+				vm.checkboxmodelChange();
+			},
+			choosePage: function(page) {
+				vm.pageIndex = page.index;
+			},
+			query: function() {
+				vm.reload();
+			},
+			add: function() {
+				vm.showList = false;
+				vm.title = "新增";
+				vm.item = {};
+			},
+			update: function() {
+				var id = vm.checkboxmodel;
+				if(id.length != 1) {
+					alert('修改请选择一行数据');
+					return false;
+				}
+
+				vm.showList = false;
+				vm.title = "修改";
+				vm.getItem(id);
+			},
+			del: function(event) {
+				var ids = vm.checkboxmodel;
+				if(ids.length == 0) {
+					alert('没有选择任何项');
+					return false;
+				}
+
+				confirm('确定要删除选中的记录？', function() {
+					$.ajax({
+						type: "DELETE",
+						url: baseURL + "sys/users/" + userid + "/${shortclassname}s",
+						contentType: "application/json",
+						data: JSON.stringify(ids),
+						success: function(r) {
+							if(r.code == 0) {
+								alert('操作成功', function(index) {
+									vm.reload();
+								});
+							} else {
+								alert(r.msg);
+							}
+						}
+					});
+				});
+			},
+			getItem: function(id) {
+				$.get(baseURL + "sys/users/" + userid + "/${shortclassname}s/" + id, function(r) {
+					vm.item = r.item;					
+				});
+			},
+			saveOrUpdate: function() {
+				if(vm.validator()) {
+					return;
+				}
+
+
+				var url = "sys/users/" + userid + "/${shortclassname}";
+				$.ajax({
+					type: vm.item.$pk.attrname == null ? "POST" : "PUT",
+					url: baseURL + url,
+					contentType: "application/json",
+					data: JSON.stringify(vm.item),
+					success: function(r) {
+						if(r.code === 0) {
+							alert('操作成功', function() {
+								vm.reload();
+							});
+						} else {
+							alert(r.msg);
+						}
+					}
+				});
+			},
+			reload: function() {
+				vm.showList = true;
+				var url = baseURL + "sys/users/" + userid + "/${shortclassname}spage";
+				var para = {};
+#foreach($column in $columns)
+#if($column.columnName != $pk.columnName)
+#if($column.attrType=='int'||$column.attrType=='Integer'||$column.attrType=='long'||$column.attrType=='Long')
+				if(vm.q.${column.columnName} != -1)
+					para.${column.columnName}__1 = vm.q.${column.columnName};
+#elseif($column.attrType=='Date')
+				var ${column.columnName} = $("#${column.columnName}").val();
+				if(${column.columnName} != null && ${column.columnName} != '') {
+					var start_${column.columnName} = ${column.columnName}.substring(0, 10);
+					var end_${column.columnName} = ${column.columnName}.substring(12, 23);
+					para.${column.columnName}__2 = Date.parse(start_${column.columnName});
+					var end = new Date(Date.parse(end_${column.columnName}));
+					end = end.valueOf();
+					end = end +  24 * 60 * 60 * 1000;
+					end_${column.columnName} = new Date(end);
+					para.${column.columnName}__3 = Date.parse(end_${column.columnName}); 
+				}			
+#else
+				para.${column.columnName}__0=vm.q.${column.columnName};
+#end
+#end
+#end
+				var p = {
+					'params': JSON.stringify(para),
+					'start': vm.start,
+					'limit': vm.limit
+				};
+				$.getJSON(url, p, function(r) {
+					vm.list = r.list;
+					vm.total = r.total;
+					vm.checkboxmodel = [];
+					vm.page = [];
+					var totalPageNum = parseInt((vm.total + parseInt(vm.pageSize) - 1) / parseInt(vm.pageSize));
+					if(vm.pageIndex - 1 > 0)
+						vm.page.push({
+							'index': vm.pageIndex - 1,
+							'text': '«'
+						});
+					for(var i = 1; i <= totalPageNum; i++) {
+						if(i == vm.pageIndex)
+							vm.page.push({
+								'index': i,
+								'text': i
+							});
+						else
+							vm.page.push({
+								'index': i,
+								'text': i
+							});
+					}
+					if(vm.pageIndex + 1 <= totalPageNum)
+						vm.page.push({
+							'index': vm.pageIndex + 1,
+							'text': '»'
+						});
+				})
+
+			},
+			validator: function() {
+#foreach($column in $columns)
+#if($column.columnName != $pk.columnName)
+				if(isBlank(vm.item.${column.attrname})) {
+					alert("${column.comments}");
+					return true;
+				}
+#end
+#end
+				
+			}
+		}
+	});

@@ -1,0 +1,53 @@
+package ${package}.dao;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.stereotype.Repository;
+
+import com.rbac.model.Page;
+import ${package}.model.${className};
+
+@Repository
+public class ${className}Dao extends QueryDao<${className}> {
+
+
+	public Page<${className}> queryList(Map<String, Object> params, Integer start, Integer limit) {
+		Page<${className}> p = queryList("${tableName}", ${className}.class, params, start, limit);
+		return p;
+	}
+
+	public ${className} queryObject(Long   ${pk.columnName} ) {
+		String sql = "select * from ${tableName} where  ${pk.columnName}  = ? ";
+		List<${className}> list = jdbcTemplate.query(sql, new BeanPropertyRowMapper<${className}>(${className}.class),${pk.columnName});
+		if (list.size() > 0)
+			return list.get(0);
+		else
+			return null;
+	}
+
+	public void save(${className} ${classname}) {
+		String sql = "insert into ${tableName} (#foreach($column in $columns)#if($column.columnName != $pk.columnName || $pk.extra != 'auto_increment')$column.columnName#if($velocityCount != $columns.size()),#end#end#end) " +
+		" values  (#foreach($column in $columns)#if($column.columnName != $pk.columnName || $pk.extra != 'auto_increment')?#if($velocityCount != $columns.size()),#end#end#end) ";
+		jdbcTemplate.update(sql,new Object[]{#foreach($column in $columns)#if($column.columnName != $pk.columnName || $pk.extra != 'auto_increment')${classname}.get${column.attrName}()#if($velocityCount != $columns.size()),#end#end#end});	
+	}	
+	
+	public void update(${className} ${classname}) {
+		String sql = "update ${tableName}  set #foreach($column in $columns)#if($column.columnName != $pk.columnName || $pk.extra != 'auto_increment')$column.columnName = ?#if($velocityCount != $columns.size()),#end#end#end" +
+		" where $pk.columnName = ?";
+		jdbcTemplate.update(sql, new Object[]{#foreach($column in $columns)#if($column.columnName != $pk.columnName || $pk.extra != 'auto_increment')${classname}.get${column.attrName}(),#end#end${classname}.get${pk.attrName}()});		
+	}
+	
+	public void deleteBatch(Long[]  ${pk.columnName}s) {
+		StringBuffer sb = new StringBuffer();
+		for (Long id :  ${pk.columnName}s) {
+			if (sb.length() > 0)
+				sb.append(",");
+			sb.append(id);
+		}
+		String sql = String.format("delete from ${tableName} where ${pk.columnName} in (%s)", sb.toString());
+		jdbcTemplate.update(sql);
+	}
+	
+}

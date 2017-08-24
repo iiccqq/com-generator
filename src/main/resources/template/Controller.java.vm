@@ -1,0 +1,71 @@
+package ${package}.controller;
+
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.alibaba.fastjson.JSON;
+import ${package}.constant.Constant;
+import ${package}.dao.${className}Dao;
+import ${package}.model.Page;
+import ${package}.model.R;
+import ${package}.model.${className};
+import ${package}.util.ValidatorUtils;
+
+@RestController
+@RequestMapping("${pathName}")
+public class ${className}Controller {
+	@Autowired
+	private ${className}Dao ${classname}Dao;
+	
+	
+	@GetMapping("/{userid}/${shortclassname}spage")
+	public R list(@RequestParam String params, @PathVariable Long userid, Integer start, Integer limit) {
+		@SuppressWarnings("unchecked")
+		Map<String, Object> para = JSON.parseObject(params, Map.class);
+		
+		if (userid != Constant.SUPER_ADMIN)
+			para.put("createUserId", userid);
+		Page<${className}> p = ${classname}Dao.queryList(para, start, limit);
+		return R.ok().put("list", p.getList()).put("total", p.getTotal());
+	}
+	
+	
+	@GetMapping("/{userid}/${shortclassname}s/{${shortclassname}Id}")
+	public R select(@PathVariable("${shortclassname}Id") Long ${shortclassname}Id) {	
+		${className} ${shortclassname} = ${classname}Dao.queryObject(${shortclassname}Id);		
+		return R.ok().put("item", ${shortclassname});
+	}
+	
+	@PostMapping("/{userid}/${shortclassname}")
+	public R save(@RequestBody ${className} ${shortclassname}, Long userid) {
+		ValidatorUtils.validateEntity(${shortclassname});		
+		${classname}Dao.save(${shortclassname});
+		return R.ok();
+	}
+
+	@PutMapping("/{userid}/${shortclassname}")
+	public R update(@RequestBody ${className} ${shortclassname}, Long userid) {
+		ValidatorUtils.validateEntity(${shortclassname});
+
+		${classname}Dao.update(${shortclassname});
+
+		return R.ok();
+	}
+
+	@DeleteMapping("/{userid}/${shortclassname}s")
+	public R delete(@RequestBody Long[] ${shortclassname}Ids) {
+		${classname}Dao.deleteBatch(${shortclassname}Ids);
+		return R.ok();
+	}
+	
+}
